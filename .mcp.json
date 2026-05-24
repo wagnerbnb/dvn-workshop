@@ -21,12 +21,15 @@
         "awslabs.eks-mcp-server": {
             "command": "uv",
             "args": [
-                "awslabs.eks-mcp-server@0.1.20",
+                "run",
+                "--with",
+                "awslabs.eks-mcp-server==0.1.31",
+                "python",
+                ".claude/scripts/eks_mcp_server_fixed.py",
                 "--allow-write",
                 "--allow-sensitive-data-access"
             ],
             "env": {
-                "AWS_PROFILE": "workshopMayProfile",
                 "FASTMCP_LOG_LEVEL": "ERROR"
             }
         }
