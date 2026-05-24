@@ -4,7 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AWS infrastructure workshop using Terraform. Stacks are independent directories prefixed with a two-digit number (e.g. `01-networking-stack-ai`). The `00-remote-backend-stack-ai` stack (if it exists) is always excluded from bulk operations.
+AWS infrastructure workshop using Terraform and Kubernetes. Stacks are independent directories prefixed with a two-digit number (e.g. `01-networking-stack-ai`). The `00-remote-backend-stack-ai` stack (if it exists) is always excluded from bulk operations.
+
+### Directory Structure
+
+- `dvn-workshop-terraform/` — Terraform stacks for AWS infrastructure
+- `dvn-workshop-apps/` — Application source code (frontend Next.js, backend .NET)
+- `dvn-workshop-kubernetes/` — Kubernetes manifests organized by application
 
 ## Agents
 
@@ -12,6 +18,14 @@ Two specialized agents are defined in `.claude/agents/`:
 
 - **`devops-solution-architect`** — Plans architectures and produces ADRs only. Never creates `.tf` files or any infrastructure code. Invoked before implementation begins.
 - **`devops-senior-engineer`** — Reads ADRs and implements IaC. Invoked after an ADR is approved.
+
+## Skills
+
+Skills are defined in `.claude/skills/`:
+
+- **`terraform-deploy`** — Deploys Terraform stacks (`fmt` → `validate` → `plan` → `apply`)
+- **`dockerfile-generator`** — Generates optimized Dockerfiles (multi-stage, alpine, rootless, healthcheck)
+- **`docker-push-ecr`** — Builds and pushes Docker images to ECR
 
 ## Deploy Workflow
 
@@ -93,3 +107,35 @@ resource "aws_route_table" "public_route_table" {}  # wrong
 **Block ordering** — `count`/`for_each` first, `tags` last (before `depends_on`/`lifecycle`).
 
 **Providers** — native `hashicorp/aws` resources only. No community modules.
+
+## Kubernetes Conventions
+
+Full rules in `.claude/rules/kubernetes-manifests.md`. Key points:
+
+**File structure** — one resource per file, organized by application:
+```
+dvn-workshop-kubernetes/
+├── backend/
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   └── pdb.yaml
+└── frontend/
+    ├── deployment.yaml
+    ├── service.yaml
+    └── pdb.yaml
+```
+
+**Required for every Deployment:**
+- Labels: `app.kubernetes.io/name`, `version`, `component`, `part-of`, `managed-by`, `environment`
+- Minimum 2 replicas
+- RollingUpdate strategy (maxUnavailable: 0)
+- readinessProbe + livenessProbe
+- Resources (requests/limits)
+- Service NodePort
+- PodDisruptionBudget
+
+**Security (non-negotiable):**
+- `runAsNonRoot: true`, `runAsUser: 1001`
+- `allowPrivilegeEscalation: false`
+- `readOnlyRootFilesystem: true`, drop ALL capabilities
+- Volumes mounted `readOnly: true` (except emptyDir for tmp/cache)
